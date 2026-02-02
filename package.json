@@ -7,6 +7,12 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "dependencies": {
+  "grammy": "^1.20.0",
+  "@anthropic-ai/sdk": "^0.18.0",
+  "dotenv": "^16.4.0"
+    }
+    
     "grammy": "^1.21.0",
     "dotenv": "^16.4.0"
   }
