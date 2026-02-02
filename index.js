@@ -1,34 +1,46 @@
-import { Bot } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import "dotenv/config";
 
+// إعداد البوت
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
 
-// تأكد من جلب الـ Key بالصحيح
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
-async function askGemini(text) {
+// دالة التحليل باستخدام الموديل المستقر
+async function askGemini(promptText) {
     try {
-        // إذا كان الـ Key فارغ
-        if (!process.env.GEMINI_API_KEY) {
-            return "❌ خطأ: GEMINI_API_KEY غير موجود في إعدادات Railway.";
-        }
+        if (!process.env.GEMINI_API_KEY) return "❌ خطأ: اسم المفتاح في Railway لازم يكون GEMINI_API_KEY";
         
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(text);
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // استعملنا gemini-pro لأنه الأكثر استقراراً مع الـ Keys المجانية
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        
+        const result = await model.generateContent(promptText);
         return result.response.text();
     } catch (error) {
-        console.error("Gemini Error Detail:", error.message);
-        return `❌ خطأ من Google: ${error.message}`;
+        console.error("Gemini Error:", error.message);
+        return "❌ فشل من Google: " + error.message;
     }
 }
 
-bot.command("start", (ctx) => ctx.reply("🚀 البوت جاهز! ابعثلي اسم أي عملة."));
+bot.command("start", async (ctx) => {
+    const kb = new InlineKeyboard().text("🥇 تحليل الذهب", "gold").text("₿ بيتكوين", "btc");
+    await ctx.reply("🚀 البوت جاهز! اختر أو اكتب اسم أي زوج:", { reply_markup: kb });
+});
+
+bot.on("callback_query:data", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.reply("⏳ جاري التحليل...");
+    const res = await askGemini(`حلل لي ${ctx.callbackQuery.data} كخبير تداول.`);
+    await ctx.reply(res);
+});
 
 bot.on("message:text", async (ctx) => {
+    if (ctx.message.text.startsWith("/")) return;
     await ctx.reply("⏳ جاري التحليل...");
     const res = await askGemini(ctx.message.text);
     await ctx.reply(res);
 });
 
+// حل مشكلة الـ Conflict (التوقف وإعادة التشغيل)
 bot.start();
+console.log("✅ Bot is running properly!");
